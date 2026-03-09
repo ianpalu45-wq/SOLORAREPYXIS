@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta http-equiv="Access-Control-Allow-Origin" content="*">
+    <title>Queue Manager</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #f5f5f5;
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+            touch-action: manipulation;
+        }
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .sync-indicator {
+            text-align: center;
+            font-size: 12px;
+            padding: 5px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .sync-indicator.online {
+            background: #4CAF50;
+            color: white;
+        }
+        .sync-indicator.offline {
+            background: #ff9800;
+            color: white;
+        }
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            font-size: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: #ddd;
+            color: #333;
+            min-height: 44px;
+        }
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        .queue-section {
+            display: none;
+        }
+        .queue-section.active {
+            display: block;
+        }
+        .add-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .add-form input {
+            flex: 1 1 100%;
+            min-width: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .add-form .amount-field {
+            flex: 1 1 30%;
+            min-width: 60px;
+        }
+        .add-form button {
+            flex: 1 1 auto;
+            min-width: 80px;
+            padding: 10px 15px;
+            font-size: 14px;
+            min-height: 44px;
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+        .person-item {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            gap: 8px;
+        }
+        .person-item.done {
+            background-color: #f0f0f0;
+            text-decoration: line-through;
+        }
+        .checkbox {
+            margin-right: 5px;
+            width: 20px;
+            height: 20px;
+        }
+        .name {
+            flex-grow: 1;
+            min-width: 150px;
+            font-size: 14px;
+            word-break: break-word;
+            cursor: pointer;
+        }
+        .name:hover {
+            text-decoration: underline;
+            color: #2196F3;
+        }
+        .button-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .delete-btn, .edit-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            color: white;
+            min-height: 44px;
+            min-width: 60px;
+        }
+        .delete-btn {
+            background-color: #ff4444;
+        }
+        .edit-btn {
+            background-color: #FF9800;
+        }
+        .save-btn {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: #667eea;
+            color: white;
+            min-height: 44px;
+        }
+        .save-btn:hover {
+            background: #5568d3;
+        }
+        .save-btn.roulette {
+            background-color: #E91E63;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .winner-highlight {
+            background-color: #4CAF50 !important;
+            color: white;
+            font-weight: bold;
+            animation: winPulse 0.5s ease-in-out 3;
+        }
+        
+        @keyframes winPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .roulette-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .roulette-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 300px;
+        }
+        
+        .roulette-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #E91E63;
+            margin: 20px 0;
+        }
+        input[type="text"] {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .amount-field {
+            width: 70px;
+            text-align: center;
+        }
+        .gold-field {
+            border-color: #FFD700 !important;
+        }
+        .donation-field {
+            border-color: #4CAF50 !important;
+        }
+        .debt-field {
+            border-color: #ff4444 !important;
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .add-form {
+                padding: 8px;
+            }
+            .add-form input {
+                font-size: 13px;
+                padding: 8px;
+            }
+            .person-item {
+                padding: 10px;
+            }
+            .name {
+                font-size: 13px;
+                min-width: 120px;
+            }
+            .delete-btn, .edit-btn {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+        }
+        
+        /* Touch-friendly buttons */
+        @media (pointer: coarse) {
+            .delete-btn, .edit-btn, .save-btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>QUEUE MANAGER</h1>
+    
+    <!-- Sync Status -->
+    <div class="sync-indicator online" id="syncIndicator">☁️ Cloud Mode - Data syncs across devices</div>
+    
+    <!-- Tab Navigation -->
+    <div class="tab-container">
+        <button class="tab-btn active" onclick="switchTab('current')">Current Week</button>
+        <button class="tab-btn" onclick="switchTab('next')">Next Week</button>
+    </div>
+    
+    <!-- Current Week Section -->
+    <div id="current-section" class="queue-section active">
+        <div class="add-form">
+            <input type="text" id="person-name" placeholder="Enter person name">
+            <input type="text" id="gold-amount" class="amount-field gold-field" placeholder="Gold">
+            <input type="text" id="donation-amount" class="amount-field donation-field" placeholder="Donation">
+            <input type="text" id="debt-amount" class="amount-field debt-field" placeholder="Debt">
+            <button onclick="addPerson('current')">Add Person</button>
+        </div>
+        <div class="button-row">
+            <button class="save-btn" onclick="savePersons('current')">Save</button>
+            <button class="save-btn" onclick="copyToNextWeek()" style="background-color: #2196F3;">Copy to Next Week</button>
+            <button class="save-btn roulette" onclick="spinRoulette('current')">🎰 Roulette</button>
+            <button class="save-btn" onclick="exportData('current')" style="background-color: #9C27B0;">Export</button>
+            <button class="save-btn" onclick="document.getElementById('import-file').click()" style="background-color: #607D8B;">Import</button>
+            <input type="file" id="import-file" style="display:none" onchange="importData(this, 'current')">
+        </div>
+        <div id="current-person-list"></div>
+    
+    <!-- Next Week Section -->
+    <div id="next-section" class="queue-section">
+        <div class="add-form">
+            <input type="text" id="person-name-next" placeholder="Enter person name">
+            <input type="text" id="gold-amount-next" class="amount-field gold-field" placeholder="Gold">
+            <input type="text" id="donation-amount-next" class="amount-field donation-field" placeholder="Donation">
+            <input type="text" id="debt-amount-next" class="amount-field debt-field" placeholder="Debt">
+            <button onclick="addPerson('next')">Add Person</button>
+        </div>
+        <div class="button-row">
+            <button class="save-btn" onclick="savePersons('next')">Save</button>
+            <button class="save-btn" onclick="clearNextWeek()" style="background-color: #ff4444;">Clear All</button>
+            <button class="save-btn roulette" onclick="spinRoulette('next')">🎰 Roulette</button>
+            <button class="save-btn" onclick="exportData('next')" style="background-color: #9C27B0;">Export</button>
+            <button class="save-btn" onclick="document.getElementById('import-file-next').click()" style="background-color: #607D8B;">Import</button>
+            <input type="file" id="import-file-next" style="display:none" onchange="importData(this, 'next')">
+        </div>
+        <div id="next-person-list"></div>
+
+    <!-- Roulette Overlay -->
+    <div class="roulette-overlay" id="rouletteOverlay">
+        <div class="roulette-box">
+            <h2>🎉 WINNER! 🎉</h2>
+            <div class="roulette-name" id="winnerName">-</div>
+            <button class="save-btn" style="background-color: #4CAF50;" onclick="closeRoulette()">Close</button>
+        </div>
+
+    <script>
+        // Firebase Configuration - REPLACE WITH YOUR OWN FIREBASE CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemo-ReplaceWithYourOwn",
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+        
+        let database;
+        let isFirebaseReady = false;
+        
+        // Try to initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            isFirebaseReady = true;
+        } catch(e) {
+            console.log('Firebase not configured - using localStorage fallback');
+            isFirebaseReady = false;
+        }
+        
+        let currentPersons = [];
+        let nextPersons = [];
+        let winnersCount = 0;
+        
+        const currentStorageKey = 'personQueue';
+        const nextStorageKey = 'nextWeekPersonQueue';
+        const winnersKey = 'winnersPicked';
+
+        // Update sync indicator
+        function updateSyncIndicator(online) {
+            const indicator = document.getElementById('syncIndicator');
+            if (online) {
+                indicator.className = 'sync-indicator online';
+                indicator.textContent = '☁️ Cloud Mode - Data syncs across devices';
+            } else {
+                indicator.className = 'sync-indicator offline';
+                indicator.textContent = '💾 Local Mode - Data saved locally only';
+            }
+        }
+
+        // Load from Firebase or localStorage
+        function loadPersons() {
+            if (isFirebaseReady && database) {
+                updateSyncIndicator(true);
+                
+                // Load current week
+                database.ref('queues/current').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    currentPersons = data ? Object.values(data) : [];
+                    renderList('current');
+                });
+                
+                // Load next week
+                database.ref('queues/next').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    nextPersons = data ? Object.values(data) : [];
+                    renderList('next');
+                });
+                
+                // Load winners count
+                database.ref('stats/winners').on('value', (snapshot) => {
+                    winnersCount = snapshot.val() || 0;
+                });
+            } else {
+                updateSyncIndicator(false);
+                
+                // Fallback to localStorage
+                const savedCurrent = localStorage.getItem(currentStorageKey);
+                if (savedCurrent) {
+                    try {
+                        currentPersons = JSON.parse(savedCurrent);
+                    } catch(e) {
+                        currentPersons = [];
+                    }
+                }
+                
+                const savedNext = localStorage.getItem(nextStorageKey);
+                if (savedNext) {
+                    try {
+                        nextPersons = JSON.parse(savedNext);
+                    } catch(e) {
+                        nextPersons = [];
+                    }
+                }
+                
+                winnersCount = parseInt(localStorage.getItem(winnersKey) || '0');
+            }
+        }
+
+        function savePersons(queue) {
+            if (isFirebaseReady && database) {
+                // Save to Firebase
+                const data = queue === 'current' ? currentPersons : nextPersons;
+                const ref = database.ref('queues/' + queue);
+                
+                ref.remove().then(() => {
+                    data.forEach((person, index) => {
+                        ref.child(index).set(person);
+                    });
+                    alert(queue === 'current' ? 'Current week saved to cloud!' : 'Next week saved to cloud!');
+                }).catch(err => {
+                    alert('Error saving: ' + err.message);
+                });
+            } else {
+                // Fallback to localStorage
+                if (queue === 'current') {
+                    localStorage.setItem(currentStorageKey, JSON.stringify(currentPersons));
+                    alert('Current week saved locally!');
+                } else {
+                    localStorage.setItem(nextStorageKey, JSON.stringify(nextPersons));
+                    alert('Next week saved locally!');
+                }
+            }
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.queue-section').forEach(section => section.classList.remove('active'));
+            
+            if (tab === 'current') {
+                document.querySelector('.tab-btn:first-child').classList.add('active');
+                document.getElementById('current-section').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn:last-child').classList.add('active');
+                document.getElementById('next-section').classList.add('active');
+            }
+        }
+
+        function renderList(queue) {
+            const list = queue === 'current' ? document.getElementById('current-person-list') : document.getElementById('next-person-list');
+            const persons = queue === 'current' ? currentPersons : nextPersons;
+            
+            list.innerHTML = '';
+            persons.forEach((person, index) => {
+                const item = document.createElement('div');
+                item.className = 'person-item' + (person.done ? ' done' : '');
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'checkbox';
+                checkbox.checked = person.done;
+                checkbox.onchange = () => toggleDone(queue, index);
+                
+                const name = document.createElement('span');
+                name.className = 'name';
+                let nameText = person.name;
+                if (person.gold) nameText += ' | Gold: ' + person.gold;
+                if (person.donation) nameText += ' | Donation: ' + person.donation;
+                if (person.debt) nameText += ' | Debt: ' + person.debt;
+                name.textContent = nameText;
+                name.style.cursor = 'pointer';
+                name.onclick = () => editPerson(queue, index);
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'edit-btn';
+                editBtn.textContent = 'Edit';
+                editBtn.onclick = () => editAll(queue, index);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.onclick = () => deletePerson(queue, index);
+                
+                item.appendChild(checkbox);
+                item.appendChild(name);
+                item.appendChild(editBtn);
+                item.appendChild(deleteBtn);
+                list.appendChild(item);
+            });
+        }
+
+        function addPerson(queue) {
+            const prefix = queue === 'current' ? '' : '-next';
+            const nameInput = document.getElementById('person-name' + prefix);
+            const goldInput = document.getElementById('gold-amount' + prefix);
+            const donationInput = document.getElementById('donation-amount' + prefix);
+            const debtInput = document.getElementById('debt-amount' + prefix);
+            
+            const name = nameInput.value.trim();
+            if (name) {
+                const newPerson = { 
+                    name: name, 
+                    gold: goldInput.value.trim(),
+                    donation: donationInput.value.trim(),
+                    debt: debtInput.value.trim(),
+                    done: false 
+                };
+                
+                if (queue === 'current') {
+                    currentPersons.push(newPerson);
+                } else {
+                    nextPersons.push(newPerson);
+                }
+                
+                nameInput.value = '';
+                goldInput.value = '';
+                donationInput.value = '';
+                debtInput.value = '';
+                renderList(queue);
+                
+                // Auto-save to cloud
+                if (isFirebaseReady && database) {
+                    savePersons(queue);
+                }
+            }
+        }
+
+        function toggleDone(queue, index) {
+            if (queue === 'current') {
+                currentPersons[index].done = !currentPersons[index].done;
+                renderList('current');
+            } else {
+                nextPersons[index].done = !nextPersons[index].done;
+                renderList('next');
+            }
+        }
+
+        function deletePerson(queue, index) {
+            if (queue === 'current') {
+                currentPersons.splice(index, 1);
+                renderList('current');
+            } else {
+                nextPersons.splice(index, 1);
+                renderList('next');
+            }
+        }
+
+        function editPerson(queue, index) {
+            const persons = queue === 'current' ? currentPersons : nextPersons;
+            const person = persons[index];
+            const newName = prompt('Edit Name:', person.name);
+            if (newName !== null) {
+                persons[index].name = newName.trim();
+                renderList(queue);
+            }
+        }
+
+        function editAll(queue, index) {
+            const persons = queue === 'current' ? currentPersons : nextPersons;
+            const person = persons[index];
+            const newName = prompt('Edit Name:', person.name);
+            const newGold = prompt('Edit Gold:', person.gold || '');
+            const newDonation = prompt('Edit Donation:', person.donation || '');
+            const newDebt = prompt('Edit Debt:', person.debt || '');
+            
+            if (newName !== null) persons[index].name = newName.trim();
+            if (newGold !== null) persons[index].gold = newGold.trim();
+            if (newDonation !== null) persons[index].donation = newDonation.trim();
+            if (newDebt !== null) persons[index].debt = newDebt.trim();
+            renderList(queue);
+        }
+
+        function copyToNextWeek() {
+            if (currentPersons.length === 0) {
+                alert('No persons to copy!');
+                return;
+            }
+            
+            const personsToCopy = currentPersons.map(p => ({
+                name: p.name,
+                gold: p.gold,
+                donation: p.donation,
+                debt: p.debt,
+                done: false
+            }));
+            
+            nextPersons = personsToCopy;
+            
+            if (isFirebaseReady && database) {
+                const ref = database.ref('queues/next');
+                ref.remove().then(() => {
+                    personsToCopy.forEach((person, index) => {
+                        ref.child(index).set(person);
+                    });
+                });
+            } else {
+                localStorage.setItem(nextStorageKey, JSON.stringify(personsToCopy));
+            }
+            
+            renderList('next');
+            alert('Copied ' + currentPersons.length + ' persons to next week!');
+            switchTab('next');
+        }
+
+        function clearNextWeek() {
+            if (confirm('Are you sure you want to clear all next week persons?')) {
+                nextPersons = [];
+                
+                if (isFirebaseReady && database) {
+                    database.ref('queues/next').remove();
+                } else {
+                    localStorage.removeItem(nextStorageKey);
+                }
+                
+                renderList('next');
+            }
+        }
+
+        function exportData(queue) {
+            const persons = queue === 'current' ? currentPersons : nextPersons;
+            const dataStr = JSON.stringify(persons);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = queue === 'current' ? 'current-queue-data.json' : 'nextweek-queue-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importData(input, queue) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const imported = JSON.parse(e.target.result);
+                        if (Array.isArray(imported)) {
+                            if (queue === 'current') {
+                                currentPersons = imported;
+                                savePersons('current');
+                                renderList('current');
+                            } else {
+                                nextPersons = imported;
+                                savePersons('next');
+                                renderList('next');
+                            }
+                            alert('Data imported successfully!');
+                        } else {
+                            alert('Invalid file format!');
+                        }
+                    } catch (err) {
+                        alert('Error reading file!');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // Roulette function
+        function spinRoulette(queue) {
+            const persons = queue === 'current' ? currentPersons : nextPersons;
+            
+            if (persons.length === 0) {
+                alert('No persons in queue to pick from!');
+                return;
+            }
+            
+            const availablePersons = persons.filter(p => !p.done);
+            
+            if (availablePersons.length === 0) {
+                alert('All persons are marked as done! No one available to win.');
+                return;
+            }
+            
+            const overlay = document.getElementById('rouletteOverlay');
+            const winnerNameEl = document.getElementById('winnerName');
+            
+            overlay.style.display = 'flex';
+            
+            let counter = 0;
+            const totalSpins = 20;
+            const interval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * availablePersons.length);
+                winnerNameEl.textContent = availablePersons[randomIndex].name;
+                counter++;
+                
+                if (counter >= totalSpins) {
+                    clearInterval(interval);
+                    const finalIndex = Math.floor(Math.random() * availablePersons.length);
+                    const winner = availablePersons[finalIndex];
+                    winnerNameEl.textContent = winner.name;
+                    
+                    const winnerIndex = persons.findIndex(p => p.name === winner.name);
+                    if (winnerIndex !== -1) {
+                        persons[winnerIndex].done = true;
+                        renderList(queue);
+                        
+                        const listItems = document.querySelectorAll('.person-item');
+                        if (listItems[winnerIndex]) {
+                            listItems[winnerIndex].classList.add('winner-highlight');
+                        }
+                        
+                        // Update winners count
+                        winnersCount++;
+                        if (isFirebaseReady && database) {
+                            database.ref('stats/winners').set(winnersCount);
+                        } else {
+                            localStorage.setItem(winnersKey, winnersCount.toString());
+                        }
+                    }
+                }
+            }, 100);
+        }
+
+        function closeRoulette() {
+            document.getElementById('rouletteOverlay').style.display = 'none';
+            setTimeout(() => {
+                const highlighted = document.querySelectorAll('.winner-highlight');
+                highlighted.forEach(el => el.classList.remove('winner-highlight'));
+            }, 500);
+        }
+
+        // Load saved data and initial render
+        loadPersons();
+    </script>
+</body>
+</html>
