@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>Next Week Person Queue</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        html, body {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #e8f5e9;
+            -webkit-text-size-adjust: 100%;
+            -moz-text-size-adjust: 100%;
+            -ms-text-size-adjust: 100%;
+        }
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 15px;
+            color: #2e7d32;
+        }
+        .add-form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .add-form input {
+            flex: 1 1 100%;
+            min-width: 120px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .add-form .amount-field {
+            flex: 1 1 30%;
+            min-width: 60px;
+        }
+        .add-form button {
+            flex: 1 1 auto;
+            min-width: 80px;
+            padding: 10px 15px;
+            font-size: 14px;
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            justify-content: center;
+        }
+        .person-item {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 12px;
+            border: 1px solid #a5d6a7;
+            border-radius: 8px;
+            background: white;
+            gap: 8px;
+        }
+        .person-item.done {
+            background-color: #c8e6c9;
+            text-decoration: line-through;
+        }
+        .checkbox {
+            margin-right: 5px;
+            width: 20px;
+            height: 20px;
+        }
+        .name {
+            flex-grow: 1;
+            min-width: 150px;
+            font-size: 14px;
+            word-break: break-word;
+            cursor: pointer;
+        }
+        .name:hover {
+            text-decoration: underline;
+            color: #2e7d32;
+        }
+        .button-group {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .delete-btn, .edit-btn {
+            padding: 8px 12px;
+            font-size: 12px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+        .delete-btn {
+            background-color: #ef5350;
+        }
+        .edit-btn {
+            background-color: #ff9800;
+        }
+        .save-btn {
+            padding: 10px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            color: white;
+        }
+        .save-btn.primary {
+            background-color: #4caf50;
+        }
+        .save-btn.secondary {
+            background-color: #2196f3;
+        }
+        .back-btn {
+            background-color: #757575;
+        }
+        .save-btn.roulette {
+            background-color: #E91E63;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .winner-highlight {
+            background-color: #4CAF50 !important;
+            color: white;
+            font-weight: bold;
+            animation: winPulse 0.5s ease-in-out 3;
+        }
+        
+        @keyframes winPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .roulette-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .roulette-box {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 300px;
+        }
+        
+        .roulette-name {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #E91E63;
+            margin: 20px 0;
+        }
+        input[type="text"] {
+            padding: 8px;
+            margin-right: 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+        .amount-field {
+            width: 70px;
+            text-align: center;
+        }
+        .gold-field {
+            border-color: #FFD700 !important;
+        }
+        .donation-field {
+            border-color: #4CAF50 !important;
+        }
+        .debt-field {
+            border-color: #ff4444 !important;
+        }
+        
+        /* Mobile adjustments */
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            h1 {
+                font-size: 1.3rem;
+            }
+            .add-form {
+                padding: 8px;
+            }
+            .add-form input {
+                font-size: 13px;
+                padding: 8px;
+            }
+            .person-item {
+                padding: 10px;
+            }
+            .name {
+                font-size: 13px;
+                min-width: 120px;
+            }
+            .delete-btn, .edit-btn {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+            .save-btn {
+                padding: 12px 20px;
+                font-size: 14px;
+            }
+        }
+        
+        /* Touch-friendly buttons */
+        @media (pointer: coarse) {
+            .delete-btn, .edit-btn, .save-btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>NEXT WEEK QUEUE</h1>
+    <div class="add-form">
+        <input type="text" id="person-name" placeholder="Enter person name">
+        <input type="text" id="gold-amount" class="amount-field gold-field" placeholder="Gold">
+        <input type="text" id="donation-amount" class="amount-field donation-field" placeholder="Donation">
+        <input type="text" id="debt-amount" class="amount-field debt-field" placeholder="Debt">
+        <button onclick="addPerson()">Add Person</button>
+    </div>
+    <div class="button-row">
+        <button class="save-btn primary" onclick="savePersons()">Save</button>
+        <button class="save-btn roulette" onclick="spinRoulette()">🎰 Roulette</button>
+        <button class="save-btn secondary" onclick="exportData()">Export</button>
+        <button class="save-btn back-btn" onclick="window.location.href='person-queue.html'">Back to This Week</button>
+    </div>
+    <div id="person-list"></div>
+
+    <!-- Roulette Overlay -->
+    <div class="roulette-overlay" id="rouletteOverlay">
+        <div class="roulette-box">
+            <h2>🎉 WINNER! 🎉</h2>
+            <div class="roulette-name" id="winnerName">-</div>
+            <button class="save-btn" style="background-color: #4CAF50;" onclick="closeRoulette()">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let persons = [];
+
+        // Load from localStorage on page load
+        function loadPersons() {
+            const saved = localStorage.getItem('nextWeekPersonQueue');
+            if (saved) {
+                persons = JSON.parse(saved);
+            }
+        }
+
+        function savePersons() {
+            localStorage.setItem('nextWeekPersonQueue', JSON.stringify(persons));
+            alert('Saved successfully!');
+        }
+
+        function renderList() {
+            const list = document.getElementById('person-list');
+            list.innerHTML = '';
+            persons.forEach((person, index) => {
+                const item = document.createElement('div');
+                item.className = 'person-item' + (person.done ? ' done' : '');
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'checkbox';
+                checkbox.checked = person.done;
+                checkbox.onchange = () => toggleDone(index);
+                
+                const name = document.createElement('span');
+                name.className = 'name';
+                // Display name with amounts inline
+                let nameText = person.name;
+                if (person.gold) nameText += ' | Gold: ' + person.gold;
+                if (person.donation) nameText += ' | Donation: ' + person.donation;
+                if (person.debt) nameText += ' | Debt: ' + person.debt;
+                name.textContent = nameText;
+                name.style.cursor = 'pointer';
+                name.onclick = () => editPerson(index);
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'edit-btn';
+                editBtn.textContent = 'Edit All';
+                editBtn.onclick = () => editAll(index);
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.onclick = () => deletePerson(index);
+                
+                item.appendChild(checkbox);
+                item.appendChild(name);
+                item.appendChild(editBtn);
+                item.appendChild(deleteBtn);
+                list.appendChild(item);
+            });
+        }
+
+        function addPerson() {
+            const nameInput = document.getElementById('person-name');
+            const goldInput = document.getElementById('gold-amount');
+            const donationInput = document.getElementById('donation-amount');
+            const debtInput = document.getElementById('debt-amount');
+            
+            const name = nameInput.value.trim();
+            if (name) {
+                persons.push({ 
+                    name: name, 
+                    gold: goldInput.value.trim(),
+                    donation: donationInput.value.trim(),
+                    debt: debtInput.value.trim(),
+                    done: false 
+                });
+                nameInput.value = '';
+                goldInput.value = '';
+                donationInput.value = '';
+                debtInput.value = '';
+                renderList();
+            }
+        }
+
+        function toggleDone(index) {
+            persons[index].done = !persons[index].done;
+            renderList();
+        }
+
+        function deletePerson(index) {
+            persons.splice(index, 1);
+            renderList();
+        }
+
+        function editPerson(index) {
+            const person = persons[index];
+            const newName = prompt('Edit Name:', person.name);
+            if (newName !== null) {
+                persons[index].name = newName.trim();
+                renderList();
+            }
+        }
+
+        function editAmount(index, field) {
+            const person = persons[index];
+            const currentValue = person[field] || '';
+            const label = field.charAt(0).toUpperCase() + field.slice(1);
+            const newValue = prompt('Edit ' + label + ':', currentValue);
+            if (newValue !== null) {
+                persons[index][field] = newValue.trim();
+                renderList();
+            }
+        }
+
+        function editAll(index) {
+            const person = persons[index];
+            const newName = prompt('Edit Name:', person.name);
+            const newGold = prompt('Edit Gold:', person.gold || '');
+            const newDonation = prompt('Edit Donation:', person.donation || '');
+            const newDebt = prompt('Edit Debt:', person.debt || '');
+            
+            if (newName !== null) persons[index].name = newName.trim();
+            if (newGold !== null) persons[index].gold = newGold.trim();
+            if (newDonation !== null) persons[index].donation = newDonation.trim();
+            if (newDebt !== null) persons[index].debt = newDebt.trim();
+            renderList();
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(persons);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'nextweek-queue-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Load saved data and initial render
+        loadPersons();
+        renderList();
+
+        // Roulette function to pick a random winner
+        function spinRoulette() {
+            if (persons.length === 0) {
+                alert('No persons in queue to pick from!');
+                return;
+            }
+            
+            // Filter only not done persons for roulette
+            const availablePersons = persons.filter(p => !p.done);
+            
+            if (availablePersons.length === 0) {
+                alert('All persons are marked as done! No one available to win.');
+                return;
+            }
+            
+            const overlay = document.getElementById('rouletteOverlay');
+            const winnerNameEl = document.getElementById('winnerName');
+            
+            overlay.style.display = 'flex';
+            
+            // Animate through names
+            let counter = 0;
+            const totalSpins = 20;
+            const interval = setInterval(() => {
+                const randomIndex = Math.floor(Math.random() * availablePersons.length);
+                winnerNameEl.textContent = availablePersons[randomIndex].name;
+                counter++;
+                
+                if (counter >= totalSpins) {
+                    clearInterval(interval);
+                    // Select final winner
+                    const finalIndex = Math.floor(Math.random() * availablePersons.length);
+                    const winner = availablePersons[finalIndex];
+                    winnerNameEl.textContent = winner.name;
+                    
+                    // Highlight winner in the list and mark as done
+                    const winnerIndex = persons.findIndex(p => p.name === winner.name);
+                    if (winnerIndex !== -1) {
+                        persons[winnerIndex].done = true;
+                        renderList();
+                        
+                        const listItems = document.querySelectorAll('.person-item');
+                        if (listItems[winnerIndex]) {
+                            listItems[winnerIndex].classList.add('winner-highlight');
+                        }
+                    }
+                }
+            }, 100);
+        }
+
+        // Close roulette overlay
+        function closeRoulette() {
+            document.getElementById('rouletteOverlay').style.display = 'none';
+            // Remove winner highlight after closing
+            setTimeout(() => {
+                const highlighted = document.querySelectorAll('.winner-highlight');
+                highlighted.forEach(el => el.classList.remove('winner-highlight'));
+            }, 500);
+        }
+    </script>
+</body>
+</html>
+
